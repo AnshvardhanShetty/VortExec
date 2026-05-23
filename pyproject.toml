@@ -1,0 +1,160 @@
+[project]
+name = "vortexec"
+version = "0.1.0"
+description = "Live execution analytics for crypto algo traders"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "Anshvardhan Shetty" }]
+
+dependencies = [
+    # Async HTTP and WebSocket
+    "aiohttp>=3.9",
+    "websockets>=12.0",
+
+    # Web framework
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+
+    # Data structures
+    "sortedcontainers>=2.4",
+
+    # Persistence
+    "pyarrow>=15.0",
+    "pandas>=2.2",
+
+    # ML inference (loading existing pickled models)
+    "scikit-learn>=1.4",
+    "numpy>=1.26",
+    "joblib>=1.3",
+
+    # Config and logging
+    "pyyaml>=6.0",
+    "structlog>=24.1",
+
+    # Auth and billing
+    "stripe>=8.0",
+    # SQLite is in stdlib; using SQLAlchemy for migrations and ORM
+    "sqlalchemy>=2.0",
+    "aiosqlite>=0.19",
+
+    # Utilities
+    "python-dotenv>=1.0",
+    "tenacity>=8.2",  # retry logic for venue connections
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+
+    # Type checking and linting
+    "mypy>=1.9",
+    "ruff>=0.3",
+    "types-pyyaml",
+
+    # Test fixtures
+    "freezegun>=1.4",
+
+    # FastAPI TestClient dependency
+    "httpx>=0.27",
+]
+
+[project.scripts]
+vortexec = "vortexec.service:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vortexec"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+]
+markers = [
+    "integration: tests that connect to live external services",
+    "slow: tests that take more than a few seconds",
+]
+
+[tool.coverage.run]
+source = ["src/vortexec"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = [
+    "sortedcontainers.*",
+    "stripe.*",
+]
+ignore_missing_imports = true
+
+# pyarrow ships partial stubs — module is importable but key parquet
+# functions (ParquetWriter, read_table, write_table, close) lack annotations
+# and trip `no-untyped-call` under strict mode. Suppress in the two files
+# that actually call into pyarrow.parquet.
+[[tool.mypy.overrides]]
+module = [
+    "vortexec.recorder.parquet_recorder",
+    "tests.unit.test_parquet_recorder",
+]
+disable_error_code = ["no-untyped-call"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "RUF", # ruff-specific rules
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["B011"]  # allow assert False in tests
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

@@ -1,0 +1,41 @@
+[Unit]
+Description=VortExec live order-book maintainer + Parquet recorder
+Documentation=https://github.com/anshshetty/vortexec
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vortexec
+Group=vortexec
+WorkingDirectory=/opt/vortexec
+ExecStart=/opt/vortexec/deploy/run.sh
+
+# Resilience
+Restart=always
+RestartSec=10
+TimeoutStartSec=30
+# Give the service time to flush Parquet writers + close WS cleanly.
+TimeoutStopSec=30
+KillSignal=SIGINT
+KillMode=mixed
+
+# Memory bounds — kill if leaks (systemd then restarts).
+MemoryHigh=512M
+MemoryMax=1G
+
+# Logging — let journald handle it, with file fallback.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vortexec
+Environment=PYTHONUNBUFFERED=1
+
+# Hardening — limit blast radius if something goes wrong.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/vortexec /var/log/vortexec
+
+[Install]
+WantedBy=multi-user.target
